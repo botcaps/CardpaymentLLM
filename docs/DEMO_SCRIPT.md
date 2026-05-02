@@ -1,6 +1,6 @@
 # Demo Video Script — Card Scheme Orchestrator
 
-**Total length: ~6 minutes.** Aim for under 7. Graders skim past the
+**Total length: ~5 minutes.** Aim for under 6. Graders skim past the
 8-minute mark.
 
 **Recording setup:**
@@ -14,7 +14,6 @@
   - This script open on a second monitor or printed
 
 **Before recording:**
-- Run `python -m rag.ingest` once so the corpus is built
 - Run `python -m ml.training.train_fraud --rows 50000` once so the model exists
 - Run `python -m evaluation.run_evals --quick` once so `latest.json` exists
 - Refresh the dashboard so the Evaluations tab has data
@@ -25,35 +24,36 @@
 
 ### [0:00–0:30] Opening — what is this and why does it matter
 
-> "Hi, I'm <YOUR NAME>. This is my Agentic AI and RAG capstone, the
-> Card Scheme Orchestrator. The problem: every card payment routes
-> through one of several networks — Visa, Mastercard, Amex, Discover —
-> and the choice affects approval rate, processing cost, fraud risk,
-> and regulatory compliance. CSO is a multi-agent system that picks
-> the optimal scheme per transaction by balancing all four."
+> "Hi, I'm <YOUR NAME>. This is my Agentic AI capstone, the Card Scheme
+> Orchestrator. The problem: every card payment routes through one of
+> several networks — Visa, Mastercard, Amex, Discover — and the choice
+> affects approval rate, processing cost, fraud risk, and regulatory
+> compliance. CSO is a multi-agent system that picks the optimal scheme
+> per transaction by balancing all four."
 
 **What's on screen:** `docs/architecture.png` (the Mermaid render)
 filling the screen. Cursor doesn't move; just narrate over the diagram.
 
 ### [0:30–1:30] The pipeline — point at the diagram
 
-> "Pipeline is built on LangGraph. Transactions enter on the left.
-> Three agents run in parallel after a planning step — auth, cost, and
-> fraud — each is a ReAct loop with its own tools.
+> "Pipeline is built on LangGraph. Transactions enter at the top.
+> A planning step decides which schemes are worth evaluating for this
+> transaction.
 >
-> The auth agent has a self-correction loop after it — that's the
-> Reflexion pattern. A critic node checks the emitted score against the
-> baseline; if it drifts too much, it loops back for one revision.
+> Then three agents run in parallel — auth, cost, and fraud — each a
+> ReAct loop with its own tools. The auth agent has a self-correction
+> loop after it: that's the Reflexion pattern. A critic node checks the
+> emitted score against the baseline data; if it drifts too much, it
+> loops back for one revision.
 >
-> Then aggregation, reflection, an HITL interrupt for high-value
-> transactions, and the compliance step. The compliance step itself is
-> parallel: a deterministic Python gate is the source of truth for
-> routing, and a Compliance RAG agent runs in parallel to produce a
-> citation-backed explanation. The RAG agent uses MCP — Model Context
-> Protocol — to access a regulation retriever. I'll show that next."
+> After aggregation and an LLM reflection pass, there's an HITL
+> interrupt for high-value transactions — anything over $500 pauses
+> for human approval. Then a deterministic compliance gate filters
+> by IFR, Durbin, OptBlue, and merchant contract rules. Finally an
+> explanation agent writes the merchant-facing justification."
 
 **What's on screen:** zoom into specific parts of the architecture
-diagram as you describe each. Don't switch screens yet.
+diagram as you describe each.
 
 ### [1:30–2:30] The codebase tour
 
@@ -61,11 +61,9 @@ diagram as you describe each. Don't switch screens yet.
 
 Open the file tree in VS Code. Walk through:
 
-> "`orchestrator/graph.py` — the LangGraph DAG, fourteen nodes.
-> `agents/` — four agents, each with its own tools. `compliance_rag`
-> is the new one I added.
-> `rag/` — corpus list, ingestion pipeline, hybrid retriever,
-> MCP server.
+> "`orchestrator/graph.py` — the LangGraph DAG, twelve nodes.
+> `agents/` — three scoring agents, each with its own tools.
+> `compliance/` — the deterministic gate and rule set.
 > `ml/` — XGBoost training plus serving wrapper.
 > `evaluation/` — three-layer harness with custom evaluators.
 > `llm_clients.py` — multi-provider abstraction. The whole system
@@ -78,38 +76,7 @@ Open `llm_clients.py`, scroll to `TIER_DEFAULTS`. Stay 5 seconds.
 > per provider are in this table. Code never imports a vendor SDK
 > directly."
 
-### [2:30–3:30] RAG layer — the headline feature
-
-Switch to terminal:
-
-```bash
-python -m rag.retriever "EU debit interchange cap"
-```
-
-Wait for the output. Read aloud from the top result:
-
-> "I'm querying the regulation corpus. This is hybrid retrieval —
-> BM25 plus dense embeddings plus a cross-encoder reranker. The top
-> result is from the EU Interchange Fee Regulation, Article 3, which
-> is exactly the right rule. The retriever returns five chunks ranked
-> by relevance, each with source metadata."
-
-Then:
-
-```bash
-python -m rag.mcp_server --http &
-```
-
-(or just describe — actually launching it as a subprocess works but
-is fragile in a recording)
-
-> "The same retriever is exposed as an MCP server. The Compliance RAG
-> agent connects to it as a subprocess, gets the tools, and uses them
-> in a ReAct loop. I went with MCP rather than direct LangChain tools
-> because it's the standard tool protocol now — the same server could
-> serve a Claude Desktop client or a CrewAI agent without changes."
-
-### [3:30–4:30] Live demo — run a transaction end-to-end
+### [2:30–3:30] Live demo — run a transaction end-to-end
 
 Switch to the dashboard, already loaded at `localhost:8501`.
 
@@ -119,39 +86,34 @@ Click **🔍 Deep Dive** tab. Pick `txn_0001` (vanilla EU dual-brand).
 > Mastercard above Visa because the issuer's auth rate is 1.3 points
 > higher on Mastercard. Both passed the deterministic compliance gate."
 
-Click **📜 Compliance RAG** tab. The same transaction.
+Expand the Rejected schemes section if any exist, then show the
+weighted ranking chart.
 
-> "Same transaction in the Compliance RAG view. The deterministic gate
-> picked Mastercard. The RAG agent's verdicts for both schemes are
-> 'compliant' — green agreement badge — and you can see the cited
-> regulation, the verbatim passage from the EU IFR, and the source
-> URL. Clicking the URL takes you to EUR-Lex."
+> "This chart decomposes the score: the blue bar is p_auth weighted
+> at 1.0, the red bar is the fee penalty at 0.15, and the orange bar
+> is the fraud penalty at 0.30. The diamond is the final weighted
+> score the planner uses to route."
 
-Now switch to **txn_0005** (Amex at non-OptBlue merchant).
+Switch to **txn_0005** or pick a high-value transaction.
 
-> "Now an Amex card at a merchant that isn't OptBlue-enrolled. The
-> deterministic gate rejected it — no eligible scheme. The RAG agent
-> agrees: blocked, with the specific contract clause. Both verifiers
-> aligned, no human review needed."
+> "Now a transaction over the $500 threshold. In Live run mode this
+> triggers the Human-in-the-Loop gate — the pipeline pauses and
+> waits for an Approve or Reject before the compliance step runs."
 
-### [4:30–5:30] Evaluation tab — proof it actually works
+### [3:30–4:30] Evaluation tab — proof it actually works
 
-Click **🧪 Evaluations** tab.
+Click **🧪 Evaluations** tab (or describe from `evaluation/results/latest.md`).
 
 > "The evaluation harness has three layers. Layer one is per-agent
-> quality — tool-use accuracy, retrieval precision at k, RAG
-> faithfulness with an LLM judge. Layer two is system quality — CSO
-> versus two baselines on fifty synthetic transactions. Layer three
-> is stress tests — schema violations, prompt injection, compliance
-> impossibilities."
+> quality — tool-use accuracy on twelve hand-labelled cases, measuring
+> whether the auth agent calls the right tools in the right order.
+> Layer two is system quality — CSO versus two baselines on fifty
+> synthetic transactions. Layer three is stress tests — schema
+> violations, prompt injection, compliance impossibilities."
 
 Point at each panel as you describe:
 
-> "Tool-use accuracy on twelve hand-labeled cases is <YOUR NUMBER>.
-> Retrieval P@1 with the cross-encoder reranker is <YOUR NUMBER>;
-> without reranker it's <YOUR NUMBER>, so the reranker is worth its
-> compute. Faithfulness scores from the live LLM judge average
-> <YOUR NUMBER> out of five.
+> "Tool-use accuracy on the twelve hand-labeled cases is <YOUR NUMBER>.
 >
 > Layer two — CSO beats the cheapest-first baseline on expected
 > revenue per hundred transactions, and crucially has zero compliance
@@ -159,7 +121,7 @@ Point at each panel as you describe:
 >
 > Layer three — four out of four stress cases caught."
 
-### [5:30–6:00] Closing — what's intentionally not done + ask
+### [4:30–5:00] Closing — what's intentionally not done + ask
 
 > "Things this project deliberately doesn't do, all documented in the
 > report's limitations section: no closed-loop feedback yet, no
@@ -186,7 +148,7 @@ End recording.
   pointing otherwise.
 - **No music.** Music dates demo videos and distracts from explanation.
 - **Render at 1080p, export as MP4 H.264.** Universal playback.
-- **Final length target: 5:45–6:30.** Anything over 7 minutes loses
+- **Final length target: 4:45–5:30.** Anything over 7 minutes loses
   attention.
 
 ## Common viva questions to be ready for after the demo
@@ -196,22 +158,19 @@ In rough order of likelihood:
 1. *"Walk me through the self-correction loop. What happens when the
    critic flags?"* — Show `orchestrator/graph.py:critique_auth_score`,
    trace the conditional edge.
-2. *"Why is the RAG agent in parallel with the deterministic gate
-   rather than after it?"* — See REPORT.md §2.1 — independence of
-   verifiers, deterministic is source of truth.
-3. *"How do you measure RAG faithfulness, and what are its biases?"* —
-   See REPORT.md §7.4 and the docstring of `rag_faithfulness.py`.
-   You should be able to name the three biases and the three mitigations.
-4. *"Why did you pick BM25 + dense weights of 0.3/0.7?"* — Empirical
-   tuning. Dense wins on average for legal language; BM25 wins on
-   exact citations. We tested 50/50 and it was worse.
-5. *"Why MCP over direct LangChain tools?"* — Decoupling. The MCP
-   server can serve any framework; tools become reusable across
-   projects.
-6. *"What's the failure mode of your fraud model in production?"* —
+2. *"Why are three agents running in parallel rather than sequentially?"*
+   — Independent state writes (auth_scores, cost_scores, fraud_scores),
+   no data dependency, so LangGraph super-steps them for free.
+3. *"What's the failure mode of your fraud model in production?"* —
    PCA features unavailable at inference time. Documented limitation.
-   Real fix is feedback-driven retraining.
-7. *"Show me a transaction where the deterministic gate and the RAG
-   agent disagree."* — Have one ready in the dashboard. If you don't
-   see one in your test runs, that itself is interesting and worth
-   discussing.
+   Real fix is feedback-driven retraining on features actually available.
+4. *"How does the HITL gate work technically?"* — `langgraph.types.interrupt()`
+   suspends the graph and serialises state to MemorySaver. The dashboard
+   resumes it via `pipeline.invoke(Command(resume=...))`.
+5. *"Why is the compliance gate deterministic rather than LLM-driven?"* —
+   Auditability. Regulatory rules are precise and don't need LLM
+   interpretation. The gate is plain Python that can be unit-tested
+   exhaustively. LLMs are used where ambiguity requires reasoning.
+6. *"How does multi-provider support work?"* — `init_chat_model("provider:model")`
+   from LangChain 0.3. One env var switches everything. Show TIER_DEFAULTS
+   in `llm_clients.py`.

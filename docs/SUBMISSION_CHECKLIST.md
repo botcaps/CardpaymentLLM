@@ -12,33 +12,27 @@ pip install -r requirements.txt
 
 # 2. Confirm tests pass (no API key needed)
 LLM_MODE=mock python tests/test_pipeline.py
-# REQUIRED: 16 passed, 0 failed
+# REQUIRED: all tests passed, 0 failed
 
-# 3. Build the RAG corpus (requires internet, ~60s)
-python -m rag.ingest
-# REQUIRED: "Index ready: <N> chunks in collection 'regulations'"
-
-# 4. Train the fraud model (requires Kaggle credentials in ~/.kaggle/kaggle.json)
+# 3. Train the fraud model (requires Kaggle credentials in ~/.kaggle/kaggle.json)
 python -m ml.training.train_fraud
 # REQUIRED: ml/fraud_model.pkl created, AUC-PR > 0.5
 
-# 5. Run all eval layers in mock mode first (no API spend)
+# 4. Run all eval layers in mock mode first (no API spend)
 LLM_MODE=mock python -m evaluation.run_evals --quick
-# REQUIRED: report renders all 5 sections, no Python errors
+# REQUIRED: report renders all sections, no Python errors
 
-# 6. THE BIG ONE — full live-mode eval
-# This costs maybe $0.50–$2 in API calls depending on provider
+# 5. THE BIG ONE — full live-mode eval
+# This costs maybe $0.20–$1 in API calls depending on provider
 LLM_PROVIDER=anthropic ANTHROPIC_API_KEY=sk-ant-... \
   python -m evaluation.run_evals --live-tools
-# REQUIRED: faithfulness has live-mode scores (some 4s and 5s)
-#           tool-use accuracy is between 0.7 and 1.0 (real LLM behaviour)
+# REQUIRED: tool-use accuracy is between 0.7 and 1.0 (real LLM behaviour)
 #           CSO numerically beats both baselines on Exp.Rev/100
 
-# 7. Manually confirm the dashboard works
+# 6. Manually confirm the dashboard works
 streamlit run dashboard.py
-# Click through every tab, especially the new ones (Compliance RAG, Evaluations).
-# Make sure the Evaluations tab shows real numbers (it reads
-# evaluation/results/latest.json — make sure that file exists from step 6).
+# Click through every tab. Make sure the Evaluations tab shows real numbers
+# (it reads evaluation/results/latest.json — make sure that file exists from step 5).
 ```
 
 ## Update the report with real numbers
@@ -46,15 +40,11 @@ streamlit run dashboard.py
 Open `docs/REPORT.md`. Find every `<TODO: ...>` placeholder. For each,
 paste the actual number from your live eval run.
 
-There are roughly 18 placeholders. Don't skip any. A grader who sees
-`<TODO>` in your final report deducts marks immediately.
-
 The most important numbers to fill in:
-- §3.1 — total chunks in the Chroma index
-- §6 — fraud model AUC-ROC and AUC-PR (from `ml/fraud_model_metrics.json`)
-- §7.1 — Layer 1 evaluator scores (from `evaluation/results/latest.json`)
-- §7.2 — Layer 2 baseline comparison numbers
-- §7.3 — Layer 3 stress test outcomes
+- §4 — fraud model AUC-ROC and AUC-PR (from `ml/fraud_model_metrics.json`)
+- §5.1 — Layer 1 tool-use accuracy score
+- §5.2 — Layer 2 baseline comparison numbers and latency
+- §5.3 — Layer 3 stress test outcomes
 
 ## Render the architecture diagram
 
@@ -66,7 +56,7 @@ The most important numbers to fill in:
 
 ## Record the demo video
 
-Use `docs/DEMO_SCRIPT.md`. Aim for 5:45–6:30. Export as 1080p MP4.
+Use `docs/DEMO_SCRIPT.md`. Aim for 4:45–5:30. Export as 1080p MP4.
 Save as `docs/demo.mp4` or upload to YouTube/Drive and put the link
 in the README's Quick Start section.
 
@@ -77,9 +67,8 @@ in the README's Quick Start section.
 git status
 # These should NOT be staged:
 #   data/kaggle_cache/
-#   rag/chroma_db/
 #   ml/fraud_model.pkl
-#   evaluation/results/eval_*.json (or .md, except 'latest.json' if you want graders to see one without running)
+#   evaluation/results/eval_*.json (or .md, except 'latest.json')
 #   __pycache__/, .venv/, .env
 
 # IMPORTANT: rotate any API key you ever pasted into the code.
@@ -111,15 +100,13 @@ In rough priority order — make sure each one is obvious:
 7. **`docs/REPORT.md` has no `<TODO>` placeholders left.**
 8. **The repo doesn't contain secrets.** Run `git log -p | grep -i 'sk-\|AIza\|gsk_'`. If anything matches, the key has been rotated, right?
 9. **The repo doesn't contain bulk data.** No CSVs, no .pkl over a few
-   MB, no PDFs. `du -sh .git/` should be reasonable (under 50MB).
-10. **Tests aren't all `assert True`.** Yours aren't (16 real scenarios)
-    but make sure none drifted to no-ops.
+   MB. `du -sh .git/` should be reasonable (under 50MB).
+10. **Tests aren't all `assert True`.** Make sure none drifted to no-ops.
 
 ## Things you'll be tempted to do that aren't worth it
 
-- Adding a 10th dashboard tab. The current 9 cover the rubric. More tabs dilute focus.
+- Adding a 10th dashboard tab. The current tabs cover the rubric. More tabs dilute focus.
 - Training the fraud model on the full 284k rows for 0.001 better AUC. The 50k subset is fine for the report.
-- Hand-validating LLM-as-judge faithfulness. Acknowledge the limitation in the report and the viva. Spending 8 hours grading 30 examples to claim "verified" buys you maybe 2 marks; spending those 8 hours polishing the demo video buys you 5.
 - Adding a 5th LLM provider. Four (OpenAI / Anthropic / Google / Groq) is already more than the rubric requires.
 - Writing a 10-page report. Four pages of dense, well-cited content beats ten pages of padding.
 
@@ -129,7 +116,7 @@ In rough order of mark-per-hour ROI:
 
 1. **Polish the demo video.** Re-record any segment where you stumbled. 30 minutes here matters more than 8 hours of code polish.
 2. **Fill in every `<TODO>` in REPORT.md.** A complete report with real numbers beats a half-filled report with extra features.
-3. **Have the viva questions ready.** Read `docs/REPORT.md` §9 (limitations) carefully — that's where most viva probes go.
+3. **Have the viva questions ready.** Read `docs/REPORT.md` §7 (limitations) carefully — that's where most viva probes go.
 4. **Render the architecture diagram cleanly.** Mermaid → PNG. Pasting raw .mmd source into your report looks unfinished.
 5. **One end-to-end test on a fresh clone.** Open a new shell, clone your own repo, run all the steps above. If anything breaks, fix it now.
 

@@ -3,13 +3,16 @@ Multi-provider LLM client.
 
 Single env var picks the provider for the entire pipeline:
 
-  LLM_PROVIDER=openai     + OPENAI_API_KEY=sk-...
-  LLM_PROVIDER=anthropic  + ANTHROPIC_API_KEY=sk-ant-...
-  LLM_PROVIDER=google     + GEMINI_API_KEY=AIza...     (also: GOOGLE_API_KEY)
-  LLM_PROVIDER=groq       + GROQ_API_KEY=gsk_...        (Llama 3.3 70B via Groq)
-  LLM_PROVIDER=ollama                                    (local Llama, no key)
+  LLM_PROVIDER=openai        + OPENAI_API_KEY=sk-...
+  LLM_PROVIDER=azure_openai  + AZURE_OPENAI_API_KEY=...
+                               AZURE_OPENAI_ENDPOINT=https://<resource>.openai.azure.com/
+                               AZURE_OPENAI_API_VERSION=2024-02-01   (optional, has default)
+  LLM_PROVIDER=anthropic     + ANTHROPIC_API_KEY=sk-ant-...
+  LLM_PROVIDER=google        + GEMINI_API_KEY=AIza...     (also: GOOGLE_API_KEY)
+  LLM_PROVIDER=groq          + GROQ_API_KEY=gsk_...        (Llama 3.3 70B via Groq)
+  LLM_PROVIDER=ollama                                       (local Llama, no key)
 
-  LLM_MODE=mock                                          (deterministic, no API)
+  LLM_MODE=mock                                             (deterministic, no API)
 
 Three "model tiers" let agents pick a model by job, not by name:
 
@@ -20,6 +23,13 @@ Three "model tiers" let agents pick a model by job, not by name:
 Each provider has a default for each tier (see TIER_DEFAULTS). You can
 override any of them with env vars: OVERRIDE_FAST_MODEL, OVERRIDE_SMART_MODEL,
 OVERRIDE_JUDGE_MODEL.
+
+Azure OpenAI note:
+  Model names in TIER_DEFAULTS are deployment names, not OpenAI model IDs.
+  Azure deployments are named by the user when created in the Azure portal.
+  Override them to match your actual deployment names:
+    OVERRIDE_FAST_MODEL=my-gpt4o-mini-deployment
+    OVERRIDE_SMART_MODEL=my-gpt4o-deployment
 """
 from __future__ import annotations
 
@@ -29,7 +39,7 @@ from typing import Literal
 
 # ── provider/tier matrix ─────────────────────────────────────────────────────
 
-ProviderName = Literal["openai", "anthropic", "google", "groq", "ollama", "mock"]
+ProviderName = Literal["openai", "azure_openai", "anthropic", "google", "groq", "ollama", "mock"]
 Tier = Literal["fast", "smart", "judge"]
 
 # Defaults are chosen for: (1) capability, (2) cost, (3) availability.
@@ -40,9 +50,18 @@ TIER_DEFAULTS: dict[str, dict[Tier, str]] = {
         "smart": "gpt-4o",
         "judge": "gpt-4o-mini",
     },
+    # Azure OpenAI: values are deployment names (not OpenAI model IDs).
+    # These defaults match common deployment naming conventions; override
+    # with OVERRIDE_FAST_MODEL / OVERRIDE_SMART_MODEL to match your actual
+    # deployment names in the Azure portal.
+    "azure_openai": {
+        "fast":  "gpt-4o-mini",
+        "smart": "gpt-4o",
+        "judge": "gpt-4o-mini",
+    },
     "anthropic": {
         "fast":  "claude-haiku-4-5-20251001",
-        "smart": "claude-sonnet-4-5",
+        "smart": "claude-sonnet-4-6",
         "judge": "claude-haiku-4-5-20251001",
     },
     "google": {
@@ -66,21 +85,24 @@ TIER_DEFAULTS: dict[str, dict[Tier, str]] = {
 
 # init_chat_model expects "provider:model" - this is the LangChain naming.
 INIT_PROVIDER_NAME = {
-    "openai":    "openai",
-    "anthropic": "anthropic",
-    "google":    "google_genai",
-    "groq":      "groq",
-    "ollama":    "ollama",
+    "openai":       "openai",
+    "azure_openai": "azure_openai",
+    "anthropic":    "anthropic",
+    "google":       "google_genai",
+    "groq":         "groq",
+    "ollama":       "ollama",
 }
 
 # Each provider needs an env var. mock and ollama don't.
+# Azure OpenAI also requires AZURE_OPENAI_ENDPOINT (validated separately).
 PROVIDER_KEY_ENV = {
-    "openai":    "OPENAI_API_KEY",
-    "anthropic": "ANTHROPIC_API_KEY",
-    "google":    "GEMINI_API_KEY",   # we also accept GOOGLE_API_KEY
-    "groq":      "GROQ_API_KEY",
-    "ollama":    None,
-    "mock":      None,
+    "openai":       "OPENAI_API_KEY",
+    "azure_openai": "AZURE_OPENAI_API_KEY",
+    "anthropic":    "ANTHROPIC_API_KEY",
+    "google":       "GEMINI_API_KEY",   # we also accept GOOGLE_API_KEY
+    "groq":         "GROQ_API_KEY",
+    "ollama":       None,
+    "mock":         None,
 }
 
 
@@ -116,9 +138,14 @@ def get_config() -> LLMConfig:
     if raw == "":
         # Auto-detect: pick the first provider whose key is present.
         # Order = cost/availability preference. Tweak freely.
-        for p in ("google", "openai", "anthropic", "groq"):
+        for p in ("anthropic", "azure_openai", "openai", "google", "groq"):
             env_var = PROVIDER_KEY_ENV[p]
-            if env_var and os.environ.get(env_var):
+            if not env_var:
+                continue
+            if os.environ.get(env_var):
+                # Azure also needs the endpoint to be useful
+                if p == "azure_openai" and not os.environ.get("AZURE_OPENAI_ENDPOINT"):
+                    continue
                 return LLMConfig(provider=p, mode="live")  # type: ignore[arg-type]
             # accept GOOGLE_API_KEY as a synonym for GEMINI_API_KEY
             if p == "google" and os.environ.get("GOOGLE_API_KEY"):
@@ -144,6 +171,13 @@ def get_config() -> LLMConfig:
             raise RuntimeError(
                 f"LLM_PROVIDER={raw} but {env_var} is not set. "
                 f"Either set the key or use LLM_MODE=mock."
+            )
+        # Azure also requires the endpoint
+        if raw == "azure_openai" and not os.environ.get("AZURE_OPENAI_ENDPOINT"):
+            raise RuntimeError(
+                "LLM_PROVIDER=azure_openai but AZURE_OPENAI_ENDPOINT is not set. "
+                "Set it to your Azure resource URL, e.g. "
+                "https://<resource-name>.openai.azure.com/"
             )
 
     return LLMConfig(provider=raw, mode="live")  # type: ignore[arg-type]
@@ -179,12 +213,17 @@ def get_chat_model(tier: Tier = "fast", **kwargs):
     # Use LangChain's universal init_chat_model. Available since langchain 0.3.
     from langchain.chat_models import init_chat_model
 
-    # init_chat_model picks up provider env vars automatically. The one
-    # exception is google_genai, which expects GOOGLE_API_KEY but we
-    # standardise on GEMINI_API_KEY — alias it here if needed.
+    # google_genai expects GOOGLE_API_KEY; we standardise on GEMINI_API_KEY.
     if cfg.provider == "google" and not os.environ.get("GOOGLE_API_KEY"):
         if os.environ.get("GEMINI_API_KEY"):
             os.environ["GOOGLE_API_KEY"] = os.environ["GEMINI_API_KEY"]
+
+    # Azure OpenAI: set API version default if not already provided.
+    # AzureChatOpenAI reads AZURE_OPENAI_API_KEY, AZURE_OPENAI_ENDPOINT,
+    # and AZURE_OPENAI_API_VERSION from the environment automatically.
+    if cfg.provider == "azure_openai":
+        if not os.environ.get("AZURE_OPENAI_API_VERSION"):
+            os.environ["AZURE_OPENAI_API_VERSION"] = "2024-02-01"
 
     return init_chat_model(
         model=model_name,

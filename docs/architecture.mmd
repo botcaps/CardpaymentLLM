@@ -37,33 +37,24 @@ flowchart TD
     AGG --> REF["reflect_on_ranking<br/><i>LLM anomaly detection</i>"]
     REF --> HITL{"check_hitl_gate<br/><i>interrupt if amount ≥ $500</i>"}
 
-    %% ─── Parallel compliance verifiers (Day 5) ─────────────
-    HITL --> COMP["run_compliance<br/><b>deterministic gate</b>"]
-    HITL --> RAG["run_compliance_rag_agent<br/><b>LLM + MCP-served retriever</b>"]
-
-    RAG -.->|MCP / stdio| MCP[/"FastMCP server<br/>retrieve_regulation"/]
-    MCP -.->|hybrid retrieval| CHROMA[("ChromaDB<br/>BM25 + dense + reranker")]
-    CHROMA -.->|sources| COR[/"5 government regulations<br/>EU IFR · Reg II · PSD2 · ..."/]
-
+    %% ─── Compliance + decision ─────────────────────────────
+    HITL --> COMP["run_compliance<br/><b>deterministic gate</b><br/><i>IFR · Durbin · OptBlue · token_lock · merchant</i>"]
     COMP --> VDEC["validate_decision"]
-    RAG --> VDEC
     VDEC -->|hard block| END3((END))
 
     %% ─── Explanation + exit ────────────────────────────────
     VDEC --> EXP["generate_explanation<br/><i>merchant-facing prose</i>"]
-    EXP --> OUT(["Decision Out<br/>scheme · p_auth · fee_bps · citations"])
+    EXP --> OUT(["Decision Out<br/>scheme · p_auth · fee_bps · explanation"])
 
     %% ─── Styling ───────────────────────────────────────────
     classDef agent      fill:#dbeafe,stroke:#1e40af,stroke-width:2px,color:#1e293b
     classDef gate       fill:#fef3c7,stroke:#a16207,stroke-width:2px,color:#1e293b
     classDef parallel   fill:#dcfce7,stroke:#166534,stroke-width:2px,color:#1e293b
-    classDef store      fill:#fce7f3,stroke:#831843,stroke-width:2px,color:#1e293b
     classDef io         fill:#f1f5f9,stroke:#334155,stroke-width:2px,color:#1e293b
     classDef terminal   fill:#fecaca,stroke:#991b1b,stroke-width:1px,color:#1e293b
 
-    class AUTH,COST,FRAUD,RAG agent
+    class AUTH,COST,FRAUD agent
     class VAL,VAO,VDEC,COMP,HITL,CRIT gate
     class PLN,REF,EXP parallel
-    class MCP,CHROMA,COR store
     class TXN,OUT io
     class END1,END2,END3 terminal

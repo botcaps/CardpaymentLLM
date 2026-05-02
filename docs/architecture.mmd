@@ -1,0 +1,69 @@
+%% CSO Capstone — Hero Architecture Diagram
+%%
+%% How to use this file:
+%%   1. Open https://mermaid.live
+%%   2. Paste this entire file into the editor
+%%   3. Click 'Actions' → 'Download PNG' (or SVG for the technical report)
+%%   4. Save the rendered image to docs/architecture.png
+%%
+%% This is the diagram to include on page 1 of REPORT.md and as
+%% the slide for the demo video opening.
+
+flowchart TD
+    %% ─── Entry ──────────────────────────────────────────────
+    TXN(["Transaction Input<br/>BIN · MCC · amount · 3DS · region"])
+
+    %% ─── Validation + Planning ─────────────────────────────
+    TXN --> VAL["validate_input<br/><i>Guardrail · prompt-injection regex</i>"]
+    VAL -->|hard block| END1((END))
+    VAL --> PLN["plan_candidates<br/><i>LLM picks 2-4 schemes</i>"]
+
+    %% ─── Parallel agent fan-out ────────────────────────────
+    PLN --> AUTH["run_auth_agent<br/><b>ReAct · fast tier</b>"]
+    PLN --> COST["run_cost_agent<br/><b>ReAct · smart tier</b>"]
+    PLN --> FRAUD["run_fraud_agent<br/><b>ReAct + XGBoost</b>"]
+
+    %% ─── Self-correction loop (Day 7) ──────────────────────
+    AUTH --> CRIT{"critique_auth_score<br/><i>drift · range · health checks</i>"}
+    CRIT -->|critique fired<br/>and revisions less than 1| AUTH
+    CRIT -->|clean| VAO
+
+    COST --> VAO["validate_agent_outputs"]
+    FRAUD --> VAO
+    VAO -->|hard block| END2((END))
+
+    %% ─── Aggregation + reflection + HITL ───────────────────
+    VAO --> AGG["aggregate_scores<br/>W₁·p_auth − W₂·norm_fee − W₃·p_fraud"]
+    AGG --> REF["reflect_on_ranking<br/><i>LLM anomaly detection</i>"]
+    REF --> HITL{"check_hitl_gate<br/><i>interrupt if amount ≥ $500</i>"}
+
+    %% ─── Parallel compliance verifiers (Day 5) ─────────────
+    HITL --> COMP["run_compliance<br/><b>deterministic gate</b>"]
+    HITL --> RAG["run_compliance_rag_agent<br/><b>LLM + MCP-served retriever</b>"]
+
+    RAG -.->|MCP / stdio| MCP[/"FastMCP server<br/>retrieve_regulation"/]
+    MCP -.->|hybrid retrieval| CHROMA[("ChromaDB<br/>BM25 + dense + reranker")]
+    CHROMA -.->|sources| COR[/"5 government regulations<br/>EU IFR · Reg II · PSD2 · ..."/]
+
+    COMP --> VDEC["validate_decision"]
+    RAG --> VDEC
+    VDEC -->|hard block| END3((END))
+
+    %% ─── Explanation + exit ────────────────────────────────
+    VDEC --> EXP["generate_explanation<br/><i>merchant-facing prose</i>"]
+    EXP --> OUT(["Decision Out<br/>scheme · p_auth · fee_bps · citations"])
+
+    %% ─── Styling ───────────────────────────────────────────
+    classDef agent      fill:#dbeafe,stroke:#1e40af,stroke-width:2px,color:#1e293b
+    classDef gate       fill:#fef3c7,stroke:#a16207,stroke-width:2px,color:#1e293b
+    classDef parallel   fill:#dcfce7,stroke:#166534,stroke-width:2px,color:#1e293b
+    classDef store      fill:#fce7f3,stroke:#831843,stroke-width:2px,color:#1e293b
+    classDef io         fill:#f1f5f9,stroke:#334155,stroke-width:2px,color:#1e293b
+    classDef terminal   fill:#fecaca,stroke:#991b1b,stroke-width:1px,color:#1e293b
+
+    class AUTH,COST,FRAUD,RAG agent
+    class VAL,VAO,VDEC,COMP,HITL,CRIT gate
+    class PLN,REF,EXP parallel
+    class MCP,CHROMA,COR store
+    class TXN,OUT io
+    class END1,END2,END3 terminal

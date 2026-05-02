@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python -m py_compile dashboard.py llm_clients.py agents/auth_score/agent.py agents/auth_score/tools.py agents/compliance_rag/agent.py agents/cost/agent.py agents/cost/tools.py agents/fraud/agent.py agents/fraud/tools.py compliance/gate.py compliance/rules/all_rules.py contracts/models.py data/feature_store.py data/fraud_store.py data/interchange.py data/kaggle_loader.py data/samples.py Guardrail/agentguardrail.py ml/fraud_model.py observability/tracer.py orchestrator/aggregate.py orchestrator/graph.py orchestrator/orchestrate.py rag/corpus.py rag/ingest.py rag/mcp_server.py rag/retriever.py)",
+      "Bash(python *)",
+      "Bash(pip install *)",
+      "Bash(python3 -c \"import sys; print\\(sys.version\\)\")",
+      "Bash(python3 -c \"import concurrent.futures; print\\('ThreadPoolExecutor available'\\)\")",
+      "Bash(xargs ls *)"
+    ]
+  }
+}

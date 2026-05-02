@@ -1,0 +1,15 @@
+{"query":"EU debit interchange cap","expected_source_ids":["ifr_eu"],"jurisdiction":"EU","notes":"Article 3 of IFR caps debit at 0.20%"}
+{"query":"EU credit interchange cap 0.30%","expected_source_ids":["ifr_eu"],"jurisdiction":"EU","notes":"Article 4 caps credit at 0.30%"}
+{"query":"US debit interchange Durbin","expected_source_ids":["reg_ii_us","reg_ii_faq"],"jurisdiction":"US","notes":"Reg II (Durbin) covers US debit cap"}
+{"query":"Strong Customer Authentication exemption low value","expected_source_ids":["psd2_rts"],"jurisdiction":"EU","notes":"PSD2 RTS Article 16 covers low-value exemption"}
+{"query":"PSD2 dynamic linking","expected_source_ids":["psd2_rts"],"jurisdiction":"EU","notes":"Article 5 of RTS"}
+{"query":"three party scheme exemption","expected_source_ids":["ifr_eu","reg_ii_us"],"jurisdiction":null,"notes":"Both IFR and Reg II touch on three-party schemes"}
+{"query":"interchange fee small issuer exemption US","expected_source_ids":["reg_ii_us","reg_ii_faq"],"jurisdiction":"US","notes":"$10B asset threshold"}
+{"query":"PSD2 transaction risk analysis","expected_source_ids":["psd2_rts"],"jurisdiction":"EU","notes":"TRA exemption thresholds"}
+{"query":"interchange fee regulation scope","expected_source_ids":["ifr_eu"],"jurisdiction":"EU","notes":"Article 1 of IFR — scope"}
+{"query":"payment service provider definition","expected_source_ids":["psd2_directive","ifr_eu"],"jurisdiction":"EU","notes":"PSD2 Art 4 + IFR Art 2 define PSP"}
+{"query":"recurring payment SCA exemption","expected_source_ids":["psd2_rts"],"jurisdiction":"EU","notes":"Article 14 RTS"}
+{"query":"co-badged card consumer choice","expected_source_ids":["ifr_eu"],"jurisdiction":"EU","notes":"Article 8 IFR"}
+{"query":"merchant routing choice","expected_source_ids":["ifr_eu","reg_ii_us"],"jurisdiction":null,"notes":"Both regimes give merchant routing choice"}
+{"query":"contactless payment limit SCA","expected_source_ids":["psd2_rts"],"jurisdiction":"EU","notes":"Article 11 RTS — €50/€150 contactless limits"}
+{"query":"debit card fraud adjustment","expected_source_ids":["reg_ii_us","reg_ii_faq"],"jurisdiction":"US","notes":"Reg II 1c fraud-prevention adjustment"}

@@ -1,0 +1,12 @@
+{"txn_id":"txn_0001","scheme":"visa","required_tools":["feature_store_lookup","issuer_health_check"],"forbidden_tools":[],"notes":"vanilla EU dual-brand, business hours — no decline_patterns needed"}
+{"txn_id":"txn_0001","scheme":"mastercard","required_tools":["feature_store_lookup","issuer_health_check"],"forbidden_tools":[],"notes":"same as visa case"}
+{"txn_id":"txn_0002","scheme":"visa","required_tools":["feature_store_lookup","issuer_health_check","scheme_decline_patterns"],"forbidden_tools":[],"notes":"hour 22 → off-hours → MUST call decline_patterns"}
+{"txn_id":"txn_0002","scheme":"mastercard","required_tools":["feature_store_lookup","issuer_health_check","scheme_decline_patterns"],"forbidden_tools":[],"notes":"hour 22 → off-hours"}
+{"txn_id":"txn_0003","scheme":"visa","required_tools":["feature_store_lookup","issuer_health_check"],"forbidden_tools":[],"notes":"US travel hour 11 — business hours, no decline_patterns"}
+{"txn_id":"txn_0003","scheme":"mastercard","required_tools":["feature_store_lookup","issuer_health_check"],"forbidden_tools":[],"notes":"same as visa"}
+{"txn_id":"txn_0004","scheme":"mastercard","required_tools":["feature_store_lookup","issuer_health_check"],"forbidden_tools":[],"notes":"EU debit, single scheme"}
+{"txn_id":"txn_0005","scheme":"amex","required_tools":["feature_store_lookup","issuer_health_check"],"forbidden_tools":[],"notes":"Amex-only, hour 19 — borderline business hours, decline_patterns optional"}
+{"txn_id":"txn_0006","scheme":"visa","required_tools":["feature_store_lookup","issuer_health_check"],"forbidden_tools":[],"notes":"network token to mastercard but visa still gets evaluated"}
+{"txn_id":"txn_0006","scheme":"mastercard","required_tools":["feature_store_lookup","issuer_health_check"],"forbidden_tools":[],"notes":"token-locked, will win at compliance gate"}
+{"txn_id":"txn_0007","scheme":"discover","required_tools":["feature_store_lookup","issuer_health_check"],"forbidden_tools":[],"notes":"single brand discover"}
+{"txn_id":"txn_0008","scheme":"visa","required_tools":["feature_store_lookup","issuer_health_check"],"forbidden_tools":[],"notes":"US debit, business hours"}
